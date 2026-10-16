@@ -45,3 +45,14 @@ like location, time, date, and organization from an Instagram post, and create a
 to be considered for autopopulation. 
 
 The app also has a social feature: you can see where your friends are planning to go and join them. 
+
+## Conventions
+
+This project uses a component-based architecture and test-driven development. Ensure that `.svelte` files are *single responsibility*. Code that is not immediately relevant for the purposes
+of the component should be moved into a new file or into its own component. With this, you should be able to keep the length of `.svelte` files below 100 lines of code. 
+
+Test-driven development means that you write tests for your code before writing the implementation. Vitest, Playwright, and Storybook are all provided to make rigorous testing 
+feasible. Follow "red-green-refactor." Write a failing test first, write implementation to make it passing, then refactor the code to make it as readable as possible. 
+Remember to avoid testing implementation details when you write tests. Use user-validated examples of correct outputs given inputs. 
+
+
