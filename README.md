@@ -6,6 +6,7 @@
 Team members (add your name here!): 
 
 1. Lamaq
-2. mishka
+2. Mishka
 3. Vanessa
 4. Harikrishnaa
+5. Katherine
