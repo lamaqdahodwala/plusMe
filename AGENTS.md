@@ -29,3 +29,19 @@ You MUST use this tool whenever writing Svelte code before sending it to the use
 
 Generates a Svelte Playground link with the provided code.
 After completing the code, ask the user if they want a playground link. Only call this tool after user confirmation and NEVER if code was written to files in their project.
+
+
+## What is this app? 
+
+This app is called "+me." It is a social app intended to give students of Rutgers University a unified hub for all campus activities and engagement. 
+
+The app has two main sections: a "Schedule" tab where users can keep track of events they and their friends are going to,
+and a "Community Events" tab where users can see recommended events based on their major, year, interests, and past events.
+Users will also have access to an AI agent that can plan out their day/week. The agent will remember the user's interactions with it to 
+give more personalized responses. 
+
+A central feature of this app is that it will autopopulate campus events from social platforms like Instagram. AI agents will extract information 
+like location, time, date, and organization from an Instagram post, and create a corresponding listing on our platform. Users may submit their club/organization
+to be considered for autopopulation. 
+
+The app also has a social feature: you can see where your friends are planning to go and join them. 
