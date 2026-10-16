@@ -11,3 +11,9 @@ If we need python for the AI parts of the app, we can set up a web server using 
 what we want using just Javascript. In production, the two servers will communicate with each other using Docker and Docker compose.
 
 We will use git for version control. 
+
+
+## Other tools present in this app: 
+
+I set up testing via Vitest and Playwright. Testing is an important part of programming and helps prevent bugs from making it into the codebase. 
+I also set up Storybook, which lets you design components in isolation and test whether they are functioning properly.  
