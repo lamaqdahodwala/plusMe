@@ -5,7 +5,7 @@
 
 Team members (add your name here!): 
 
-Lamaq
-mishka
-Vanessa
-Harikrishnaa
+1. Lamaq
+2. mishka
+3. Vanessa
+4. Harikrishnaa
