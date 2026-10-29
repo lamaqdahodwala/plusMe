@@ -11,3 +11,8 @@ Team members (add your name here!):
 4. Harikrishnaa
 5. Katherine
 6. Advika
+7. Nuo
+8. Dario
+9. Daryl
+10. Reet
+11. Jacob
