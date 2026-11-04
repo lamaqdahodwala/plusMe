@@ -5,10 +5,19 @@ Contains all tasks that relate to the project. This is the single source of all 
 - Implement user authentication and have "Sign Up" and "Log In" pages. This can be done with Supabase
     - Allow for OAuth (i.e. "Sign in with Google")
 - Implement relevant database tables for our app
-    - User, with the fields `id`, `username`, `attendedEvents`, `friends`, `scheduledEvents`
-    - Event, with the fields `name`, `description`, `organization`, `link`, `attendanceQRCode`, `attendees`, `address` (or coordinates `location`), `tags`, `startTime`, `duration`
-    - Organization, with the fields `members`, `events`, `description`, `socialMediaChannels`
-    - Tag, with the fields `name`
+    - University/College, with the fields `cid, `name`
+    - User, with the fields `uid`, `username`, `profile_pic`, `personal_email`, `created_at`
+    - UserEmails, with the fields `uid`, `emid`, `email`, `email_type`, `verified`, `created_at`
+    - UserUnis, with the fields `affid`, `uid`, `cid`
+    - Friendships with the fields `uid1`, `uid2` (uid1 < uid2)
+    - Event, with the fields `eid`, `name`, `description`, `organization_id`, `link`, `attendanceQRCode`, `address`, `startTime`, `duration`
+    - Organization, with the fields `oid`, `name`, `description`, `socialMediaChannels`, `cid`
+    - Tag, with the fields `tid`, `name`
+    - EventAttendance, with the fields `uid`, `eid`, `status`, `registered_at`
+    - OrgMembers, with the fields `oid`, `uid`, `role`
+    - EventTags, with the fields `eid`, `tid`, `tag`
+    - TagFollowers, with the fields `uid`, `tid`, `followed_at`
+
 - Implement CRUD functionality with respect to events 
     - Allow manual creation of events by an organization
     - Allow users to RSVP for events
