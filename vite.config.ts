@@ -1,6 +1,5 @@
 /// <reference types="vitest/config" />
 import tailwindcss from '@tailwindcss/vite';
-import adapter from '@sveltejs/adapter-vercel';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import path from 'node:path';
@@ -18,7 +17,6 @@ export default defineConfig({
         filename
       }) => filename.split(/[/\\]/).includes('node_modules') ? undefined : true
     },
-    adapter: adapter()
   })],
   test: {
     projects: [{

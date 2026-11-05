@@ -5,7 +5,7 @@ Contains all tasks that relate to the project. This is the single source of all 
 - Implement user authentication and have "Sign Up" and "Log In" pages. This can be done with Supabase
     - Allow for OAuth (i.e. "Sign in with Google")
 - Implement relevant database tables for our app
-    - University/College, with the fields `cid, `name`
+    - University/College, with the fields `cid`, `name`
     - User, with the fields `uid`, `username`, `profile_pic`, `personal_email`, `created_at`
     - UserEmails, with the fields `uid`, `emid`, `email`, `email_type`, `verified`, `created_at`
     - UserUnis, with the fields `affid`, `uid`, `cid`
