@@ -19,8 +19,19 @@ export async function load({ locals }) {
         console.error('Could not retrieve user profile:', error.message);
     }
 
+    const { data: events, error: eventsError } = await locals.supabase
+        .from('Event')
+        .select('eid, name, description, address, startTime, duration')
+        .order('startTime', { ascending: true });
+
+    if (eventsError) {
+        console.error('Error fetching events:', eventsError.message);
+    }
+
     return {
+        // Keep your existing returned properties!
         profile,
-        email: user.email
+        email: user.email,
+        events: events ?? []
     };
 }
