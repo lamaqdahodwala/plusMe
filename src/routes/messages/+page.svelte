@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount, onDestroy } from 'svelte';
-    import { supabase } from '$lib/supabase/client';
+    import { supabase } from '#lib/supabase/client';
     import {
         getOrGenerateUserKeyPair,
         exportPublicKey,
@@ -8,7 +8,7 @@
         deriveSharedSecret,
         encryptMessage,
         decryptMessage
-    } from '$lib/services/crypto';
+    } from '#lib/services/crypto';
     import type { RealtimeChannel } from '@supabase/supabase-js';
 
     interface Message {
@@ -29,10 +29,9 @@
     }
 
     interface UserSearchResult {
-        id: string;
-        full_name: string;
+        uid: string;
         username: string;
-        avatar_url: string;
+        profile_pic: string | null;
     }
 
     let user = $state<any>(null);
@@ -55,24 +54,51 @@
     let chatScrollContainer: HTMLDivElement | null = $state(null);
 
     onMount(async () => {
-        const { data: authData } = await supabase.auth.getUser();
-        user = authData?.user;
+        try {
+            console.log('[Messaging] Initializing...');
 
-        if (!user) return;
+            const { data: authData, error: authError } =
+                await supabase.auth.getUser();
 
-        // Load or generate persistent keys
-        keyPair = await getOrGenerateUserKeyPair(user.id);
-        const jwk = await exportPublicKey(keyPair.publicKey);
+            if (authError) throw authError;
 
-        // Sync public key with Supabase
-        await supabase.from('user_crypto_keys').upsert({
-            user_id: user.id,
-            public_key: jwk,
-            updated_at: new Date().toISOString()
-        });
+            user = authData?.user;
 
-        await loadConversations();
-        loading = false;
+            if (!user) {
+                console.error('[Messaging] No authenticated user');
+                loading = false;
+                return;
+            }
+
+            console.log('[Messaging] Authenticated:', user.id);
+
+            keyPair = await getOrGenerateUserKeyPair(user.id);
+            console.log('[Messaging] Key pair loaded');
+
+            const jwk = await exportPublicKey(keyPair.publicKey);
+            console.log('[Messaging] Public key exported');
+
+            const { error: keyError } = await supabase
+                .from('user_crypto_keys')
+                .upsert({
+                    user_id: user.id,
+                    public_key: jwk,
+                    updated_at: new Date().toISOString()
+                });
+
+            if (keyError) throw keyError;
+
+            console.log('[Messaging] Public key synchronized');
+
+            await loadConversations();
+
+            console.log('[Messaging] Conversations loaded');
+
+        } catch (error) {
+            console.error('[Messaging] Initialization failed:', error);
+        } finally {
+            loading = false;
+        }
     });
 
     onDestroy(() => {
@@ -88,49 +114,99 @@
     }
 
     async function loadConversations() {
-        // Query participants joined with profiles
-        const { data } = await supabase
-            .from('conversation_participants')
-            .select(`
-                conversation_id,
-                user_id,
-                profiles:user_id (
-                    full_name,
-                    username,
-                    avatar_url
-                )
-            `)
-            .neq('user_id', user.id);
+        // Get conversations that belong to the current user
+        const { data: myParticipations, error: myError } =
+            await supabase
+                .from('conversation_participants')
+                .select('conversation_id')
+                .eq('user_id', user.id);
 
-        if (data) {
-            conversations = data.map((d: any) => ({
-                id: d.conversation_id,
-                recipient_id: d.user_id,
-                recipient_name: d.profiles?.full_name || 'Anonymous User',
-                recipient_username: d.profiles?.username || d.user_id.slice(0, 8),
-                recipient_avatar: d.profiles?.avatar_url
-            }));
+        if (myError) {
+            console.error('Failed to load participation:', myError);
+            return;
+        }
 
-            if (conversations.length > 0 && !selectedConversation) {
-                await selectConversation(conversations[0]);
-            }
+        const conversationIds = [
+            ...new Set(myParticipations.map(p => p.conversation_id))
+        ];
+
+        if (conversationIds.length === 0) {
+            conversations = [];
+            return;
+        }
+
+        // Find the other participants
+        const { data: otherParticipants, error: participantError } =
+            await supabase
+                .from('conversation_participants')
+                .select('conversation_id, user_id')
+                .in('conversation_id', conversationIds)
+                .neq('user_id', user.id);
+
+        if (participantError) {
+            console.error('Failed to load other participants:', participantError);
+            return;
+        }
+
+        const recipientIds = [
+            ...new Set(otherParticipants.map(p => p.user_id))
+        ];
+
+        if (recipientIds.length === 0) {
+            conversations = [];
+            return;
+        }
+
+        // Retrieve their existing user profiles
+        const { data: users, error: usersError } = await supabase
+            .from('User')
+            .select('uid, username, profile_pic')
+            .in('uid', recipientIds);
+
+        if (usersError) {
+            console.error('Failed to load users:', usersError);
+            return;
+        }
+
+        conversations = otherParticipants.map(participant => {
+            const recipient = users.find(
+                u => u.uid === participant.user_id
+            );
+
+            return {
+                id: participant.conversation_id,
+                recipient_id: participant.user_id,
+                recipient_name: recipient?.username || 'Unknown User',
+                recipient_username: recipient?.username || 'unknown',
+                recipient_avatar: recipient?.profile_pic || undefined
+            };
+        });
+
+        if (conversations.length > 0 && !selectedConversation) {
+            await selectConversation(conversations[0]);
         }
     }
 
     async function selectConversation(conv: Conversation) {
         selectedConversation = conv;
         messages = [];
+        sharedKey = null;
 
         // 1. Fetch recipient's public key
-        const { data: keyData } = await supabase
+        const { data: keyData, error: keyError } = await supabase
             .from('user_crypto_keys')
             .select('public_key')
             .eq('user_id', conv.recipient_id)
-            .single();
+            .maybeSingle();
 
-        if (keyData && keyPair) {
-            const remotePubKey = await importPublicKey(keyData.public_key);
-            sharedKey = await deriveSharedSecret(keyPair.privateKey, remotePubKey);
+        if (keyError) {
+            console.error('Failed to retrieve encryption key:', keyError);
+            return;
+        }
+
+        if (!keyData) {
+            console.error('Recipient has not registered an encryption key.');
+            return;
         }
 
         // 2. Load historical messages
@@ -182,17 +258,27 @@
     async function handleSend() {
         if (!messageText.trim() || !selectedConversation || !sharedKey || !user) return;
 
-        const currentText = messageText;
+        const currentText = messageText.trim();
         messageText = '';
 
-        const { ciphertext, iv } = await encryptMessage(currentText, sharedKey);
+        try {
+            const { ciphertext, iv } = await encryptMessage(currentText, sharedKey);
 
-        await supabase.from('messages').insert({
-            conversation_id: selectedConversation.id,
-            sender_id: user.id,
-            ciphertext,
-            iv
-        });
+            const { error } = await supabase.from('messages').insert({
+                conversation_id: selectedConversation.id,
+                sender_id: user.id,
+                ciphertext,
+                iv
+            });
+
+            if (error) {
+                throw error;
+            }
+
+        } catch (error) {
+            console.error('Message sending failed:', error);
+            messageText = currentText;
+        }
     }
 
     async function handleSearchUsers() {
@@ -202,42 +288,51 @@
         }
 
         isSearching = true;
-        const { data } = await supabase
-            .from('profiles')
-            .select('id, full_name, username, avatar_url')
-            .neq('id', user.id)
+
+        const { data, error } = await supabase
+            .from('User')
+            .select('uid, username, profile_pic')
+            .neq('uid', user.id)
             .ilike('username', `%${searchQuery.trim()}%`)
             .limit(10);
 
-        searchResults = (data as UserSearchResult[]) || [];
+        if (error) {
+            console.error('User search failed:', error);
+            searchResults = [];
+        } else {
+            searchResults = data || [];
+        }
+
         isSearching = false;
     }
 
     async function startNewChat(targetUser: UserSearchResult) {
-        // Create conversation record
-        const { data: convData, error: convErr } = await supabase
-            .from('conversations')
-            .insert({})
-            .select()
-            .single();
+        try {
+            const { data: conversationId, error } = await supabase
+                .rpc('create_direct_conversation', {
+                    p_target_user_id: targetUser.uid
+                });
 
-        if (convErr || !convData) return;
+            if (error) {
+                console.error('Failed to create conversation:', error);
+                return;
+            }
 
-        // Add both participants
-        await supabase.from('conversation_participants').insert([
-            { conversation_id: convData.id, user_id: user.id },
-            { conversation_id: convData.id, user_id: targetUser.id }
-        ]);
+            isModalOpen = false;
+            searchQuery = '';
+            searchResults = [];
 
-        isModalOpen = false;
-        searchQuery = '';
-        searchResults = [];
+            await loadConversations();
 
-        await loadConversations();
+            const created = conversations.find(
+                c => c.id === conversationId
+            );
 
-        const created = conversations.find((c) => c.id === convData.id);
-        if (created) {
-            await selectConversation(created);
+            if (created) {
+                await selectConversation(created);
+            }
+        } catch (error) {
+            console.error('Unexpected conversation error:', error);
         }
     }
 </script>
@@ -348,10 +443,11 @@
                     {#each searchResults as person}
                         <button class="search-item" onclick={() => startNewChat(person)}>
                             <div class="avatar small">
-                                {person.full_name ? person.full_name[0] : person.username[0]}
+                                {person.username[0]?.toUpperCase() || '?'}
                             </div>
+
                             <div class="item-info">
-                                <strong>{person.full_name || person.username}</strong>
+                                <strong>{person.username}</strong>
                                 <span>@{person.username}</span>
                             </div>
                             <span class="chat-action">Chat &rarr;</span>
