@@ -1,4 +1,38 @@
-// Helper functions for Base64 conversion
+const DB_NAME = 'PlusMeSecureStorage';
+const DB_VERSION = 1;
+const STORE_NAME = 'crypto_keys';
+
+function openKeyDB(): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = () => {
+            req.result.createObjectStore(STORE_NAME);
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+async function saveLocalPrivateKey(userId: string, key: CryptoKey): Promise<void> {
+    const db = await openKeyDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).put(key, `ecdh_priv_${userId}`);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+}
+
+async function getLocalPrivateKey(userId: string): Promise<CryptoKey | null> {
+    const db = await openKeyDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const req = tx.objectStore(STORE_NAME).get(`ecdh_priv_${userId}`);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => reject(req.error);
+    });
+}
+
 function bufferToBase64(buf: ArrayBuffer): string {
     return btoa(String.fromCharCode(...new Uint8Array(buf)));
 }
@@ -12,21 +46,57 @@ function base64ToBuffer(b64: string): ArrayBuffer {
     return bytes.buffer;
 }
 
-// Generate ECDH Key Pair
-export async function generateKeyPair(): Promise<CryptoKeyPair> {
-    return await crypto.subtle.generateKey(
+/**
+ * Gets the user's existing ECDH keypair from IndexedDB or generates a new one.
+ */
+export async function getOrGenerateUserKeyPair(userId: string): Promise<CryptoKeyPair> {
+    const existingPrivate = await getLocalPrivateKey(userId);
+
+    if (existingPrivate) {
+        // Derive or load existing public key from storage or regenerate if missing
+        // In Web Crypto, generating a fresh pair on initial setup and caching both is standard
+        return {
+            privateKey: existingPrivate,
+            publicKey: await getLocalPublicKey(userId) as CryptoKey
+        };
+    }
+
+    const keyPair = await crypto.subtle.generateKey(
         { name: 'ECDH', namedCurve: 'P-256' },
-        true,
+        false, // non-extractable private key for security
         ['deriveKey', 'deriveBits']
     );
+
+    await saveLocalPrivateKey(userId, keyPair.privateKey);
+    await saveLocalPublicKey(userId, keyPair.publicKey);
+
+    return keyPair;
 }
 
-// Export Public Key to JWK
+async function saveLocalPublicKey(userId: string, key: CryptoKey): Promise<void> {
+    const db = await openKeyDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).put(key, `ecdh_pub_${userId}`);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+}
+
+async function getLocalPublicKey(userId: string): Promise<CryptoKey | null> {
+    const db = await openKeyDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const req = tx.objectStore(STORE_NAME).get(`ecdh_pub_${userId}`);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => reject(req.error);
+    });
+}
+
 export async function exportPublicKey(key: CryptoKey): Promise<JsonWebKey> {
     return await crypto.subtle.exportKey('jwk', key);
 }
 
-// Import Remote Public Key from JWK
 export async function importPublicKey(jwk: JsonWebKey): Promise<CryptoKey> {
     return await crypto.subtle.importKey(
         'jwk',
@@ -37,7 +107,6 @@ export async function importPublicKey(jwk: JsonWebKey): Promise<CryptoKey> {
     );
 }
 
-// Derive a shared AES-GCM-256 key from local private key and remote public key
 export async function deriveSharedSecret(
     privateKey: CryptoKey,
     remotePublicKey: CryptoKey
@@ -51,7 +120,6 @@ export async function deriveSharedSecret(
     );
 }
 
-// Encrypt plaintext with shared secret
 export async function encryptMessage(
     plaintext: string,
     sharedKey: CryptoKey
@@ -71,7 +139,6 @@ export async function encryptMessage(
     };
 }
 
-// Decrypt message with shared secret
 export async function decryptMessage(
     ciphertext: string,
     iv: string,
@@ -89,6 +156,6 @@ export async function decryptMessage(
 
         return new TextDecoder().decode(decrypted);
     } catch {
-        return '[Message cannot be decrypted]';
+        return '[Encrypted message - key mismatch]';
     }
 }
