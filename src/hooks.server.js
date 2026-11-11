@@ -1,14 +1,24 @@
-console.log('Supabase environment check:', {
-    hasUrl: Boolean(PUBLIC_SUPABASE_URL),
-    hasKey: Boolean(PUBLIC_SUPABASE_PUBLISHABLE_KEY)
-});
 import { createServerClient } from '@supabase/ssr';
 import {
     PUBLIC_SUPABASE_URL,
     PUBLIC_SUPABASE_PUBLISHABLE_KEY
 } from '$app/env/public';
 
-export async function handle({ event, resolve }) {
+/**
+ * @param {{
+ *   event: import('@sveltejs/kit').RequestEvent,
+ *   resolve: (
+ *     event: import('@sveltejs/kit').RequestEvent,
+ *     options?: {
+ *       filterSerializedResponseHeaders?: (
+ *         name: string,
+ *         value: string
+ *       ) => boolean
+ *     }
+ *   ) => Promise<Response>
+ * }} params
+ */
+export const handle = async ({ event, resolve }) => {
     event.locals.supabase = createServerClient(
         PUBLIC_SUPABASE_URL,
         PUBLIC_SUPABASE_PUBLISHABLE_KEY,
@@ -16,7 +26,10 @@ export async function handle({ event, resolve }) {
             cookies: {
                 getAll: () => event.cookies.getAll(),
 
-                setAll: (cookiesToSet, headers) => {
+                setAll: (
+                    cookiesToSet,
+                    headers
+                ) => {
                     cookiesToSet.forEach(({ name, value, options }) => {
                         event.cookies.set(name, value, {
                             ...options,
@@ -24,7 +37,7 @@ export async function handle({ event, resolve }) {
                         });
                     });
 
-                    if (Object.keys(headers).length > 0) {
+                    if (headers && Object.keys(headers).length > 0) {
                         event.setHeaders(headers);
                     }
                 }
@@ -32,30 +45,46 @@ export async function handle({ event, resolve }) {
         }
     );
 
-    // Verify the current user's session
-    event.locals.safeGetSession = async () => {
-        const {
-            data: { session }
-        } = await event.locals.supabase.auth.getSession();
+    // Cache authentication verification so it only runs once per request.
+    /** @type {Promise<{
+     *   session: import('@supabase/supabase-js').Session | null,
+     *   user: import('@supabase/supabase-js').User | null
+     * }> | null} */
+    let sessionPromise = null;
 
-        if (!session) {
-            return { session: null, user: null };
+    event.locals.safeGetSession = () => {
+        if (!sessionPromise) {
+            sessionPromise = (async () => {
+                const {
+                    data: { session },
+                    error: sessionError
+                } = await event.locals.supabase.auth.getSession();
+
+                if (sessionError || !session) {
+                    return { session: null, user: null };
+                }
+
+                const {
+                    data: { user },
+                    error: userError
+                } = await event.locals.supabase.auth.getUser();
+
+                if (userError) {
+                    return { session: null, user: null };
+                }
+
+                return { session, user };
+            })();
         }
 
-        const {
-            data: { user },
-            error
-        } = await event.locals.supabase.auth.getUser();
-
-        if (error) {
-            return { session: null, user: null };
-        }
-
-        return { session, user };
+        return sessionPromise;
     };
 
+    // Complete session verification before generating the response.
+    await event.locals.safeGetSession();
+
     return resolve(event, {
-        filterSerializedResponseHeaders(name) {
+        filterSerializedResponseHeaders: (/** @type {string} */ name) => {
             return (
                 name === 'content-range' ||
                 name === 'x-supabase-api-version'

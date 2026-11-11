@@ -6,7 +6,7 @@
 <div class="app-container">
     <nav class="nav-bar">
         <div class="logo">
-            <a href="/home">plusMe</a>
+            <a href="/home">+me</a>
         </div>
         <div class="nav-links">
             <a href="/home">Home</a>
@@ -39,11 +39,10 @@
         border-bottom: 1px solid #e2e8f0;
     }
 
-    .logo a {
-        font-size: 1.25rem;
+    .logo {
+        color: #8065bd;
         font-weight: 800;
-        color: #2563eb;
-        text-decoration: none;
+        font-size: 28px;
     }
 
     .nav-links {
@@ -60,7 +59,7 @@
     }
 
     .nav-links a:hover, .nav-links a.active {
-        color: #2563eb;
+        color: #8065bd;
         font-weight: 600;
     }
 
