@@ -6,7 +6,7 @@
 <div class="app-container">
     <nav class="nav-bar">
         <div class="logo">
-            <a href="/home">+me</a>
+            <a href="/">+me</a>
         </div>
         <div class="nav-links">
             <a href="/home">Home</a>

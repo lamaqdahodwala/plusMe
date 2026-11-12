@@ -9,6 +9,8 @@
 
 <main>
 	<h1>Who am I?</h1>
+  <a href="/home" class="underline">Go to Dashboard</a> <br>
+  <a href="/login" class="underline">Go to Login</a>
 	<pre>{JSON.stringify(data, null, 2)}</pre>
 </main>
 
