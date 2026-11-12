@@ -2,15 +2,16 @@ import { redirect } from '@sveltejs/kit';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals }) {
-    const { user } = await locals.safeGetSession();
+	const { user } = await locals.safeGetSession();
 
-    if (!user) {
-        redirect(303, '/');
-    }
+	if (!user) {
+		redirect(303, '/login');
+	}
 
-    const { data: events, error } = await locals.supabase
-    .from('Event')
-    .select(`
+	const { data: events, error } = await locals.supabase
+		.from('Event')
+		.select(
+			`
         eid,
         name,
         description,
@@ -23,14 +24,15 @@ export async function load({ locals }) {
                 name
             )
         )
-    `)
-    .order('startTime', { ascending: true });
+    `
+		)
+		.order('startTime', { ascending: true });
 
-    if (error) {
-        console.error('Error fetching events:', error.message);
-    }
+	if (error) {
+		console.error('Error fetching events:', error.message);
+	}
 
-    return {
-        events: events ?? []
-    };
+	return {
+		events: events ?? []
+	};
 }

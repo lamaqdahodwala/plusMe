@@ -19,7 +19,7 @@
 
 		<form
 			method="POST"
-      class="flex flex-col gap-3"
+			class="flex flex-col gap-3"
 			use:enhance={() => {
 				submitting = true;
 
@@ -30,13 +30,34 @@
 			}}
 		>
 			<label for="username">Username</label>
-			<input class="rounded-lg p-2" id="username" name="username" type="text" value={form?.username ?? ''} required />
+			<input
+				class="rounded-lg p-2"
+				id="username"
+				name="username"
+				type="text"
+				value={form?.username ?? ''}
+				required
+			/>
 
 			<label for="email">Email</label>
-			<input class="rounded-lg p-2" id="email" name="email" type="email" value={form?.email ?? ''} required />
+			<input
+				class="rounded-lg p-2"
+				id="email"
+				name="email"
+				type="email"
+				value={form?.email ?? ''}
+				required
+			/>
 
 			<label for="password">Password</label>
-			<input class="rounded-lg p-2" id="password" name="password" type="password" minlength="8" required />
+			<input
+				class="rounded-lg p-2"
+				id="password"
+				name="password"
+				type="password"
+				minlength="8"
+				required
+			/>
 
 			<button type="submit" disabled={submitting}>
 				{submitting ? 'Creating account...' : 'Sign Up'}
@@ -44,12 +65,11 @@
 		</form>
 
 		{#if form?.message}
-      {#if form.success}
-
-        <SignUpSuccess></SignUpSuccess>
-      {/if}
+			{#if form.success}
+				<SignUpSuccess></SignUpSuccess>
+			{/if}
 		{/if}
 
-		<p>Already have an account? <a href={resolve('/')}>Log in</a></p>
+		<p>Already have an account? <a href={resolve('/login')}>Log in</a></p>
 	</div>
 </main>
