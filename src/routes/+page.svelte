@@ -1,5 +1,4 @@
 <script>
-<<<<<<< HEAD
     import { goto } from '$app/navigation';
     import { supabase } from '#lib/supabase/client';
 
@@ -93,12 +92,3 @@
         color: red;
     }
 </style>
-=======
-    import Button from "./Button.svelte";
-</script>
-
-<h1>Welcome to SvelteKit</h1>
-<p>Visit <a href="https://svelte.dev/docs/kit">svelte.dev/docs/kit</a> to read the documentation</p>
-
-<Button></Button>
->>>>>>> 8dacf2d (create new button)
