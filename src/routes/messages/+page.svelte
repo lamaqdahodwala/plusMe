@@ -493,7 +493,7 @@
     }
 
     .new-chat-btn {
-        background: #2563eb;
+        background: #7354bd;
         color: #ffffff;
         border: none;
         padding: 6px 14px;
@@ -528,7 +528,7 @@
         width: 42px;
         height: 42px;
         border-radius: 50%;
-        background: #3b82f6;
+        background: #7354bd;
         color: #ffffff;
         display: flex;
         align-items: center;
@@ -608,7 +608,7 @@
     }
 
     .bubble-row.outgoing .bubble {
-        background: #2563eb;
+        background: #7354bd;
         color: #ffffff;
     }
 
@@ -644,7 +644,7 @@
 
     .compose-bar button {
         padding: 0 18px;
-        background: #2563eb;
+        background: #7354bd;
         color: #ffffff;
         border: none;
         border-radius: 8px;
@@ -661,7 +661,7 @@
     .link-btn {
         background: none;
         border: none;
-        color: #2563eb;
+        color: #7354bd;
         font-weight: 600;
         cursor: pointer;
         margin-top: 8px;
@@ -761,7 +761,7 @@
     .chat-action {
         font-size: 0.85rem;
         font-weight: 600;
-        color: #2563eb;
+        color: #7354bd;
     }
 
     .status-text {
