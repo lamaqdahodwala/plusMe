@@ -1,3 +1,4 @@
+
 <script>
     import { goto } from '$app/navigation';
     import { supabase } from '#lib/supabase/client';
@@ -9,8 +10,7 @@
 
     // Show a small preview instead of the entire event list.
     let previewEvents = $derived((data.events ?? []).slice(0, 3));
-    let username = $derived(data?.profile?.username || 'Student');
-    let initials = $derived(username.slice(0, 2).toUpperCase());
+
     async function handleLogout() {
         loggingOut = true;
 
@@ -34,7 +34,6 @@
     />
 </svelte:head>
 
-<<<<<<< HEAD
 <main>
     <!-- Welcome section -->
     <section class="welcome-section">
@@ -66,47 +65,6 @@
                 Explore campus events, meet new people, and find
                 opportunities that fit your schedule.
             </p>
-=======
-<!-- Top Navigation Bar -->
-<header class="top-bar">
-    <a href="/home" class="brand-logo">
-        <span class="plus">+</span>me
-        <span class="brand-tag">RU</span>
-    </a>
-
-    <!-- Profile & Logout Action Area -->
-    <div class="profile-container">
-        {#if data?.profile?.profile_pic}
-            <img src={data.profile.profile_pic} alt="Profile" class="avatar-img" />
-        {:else}
-            <div class="avatar">{initials}</div>
-        {/if}
-
-        <button class="logout-btn" onclick={handleLogout} disabled={loggingOut}>
-            {loggingOut ? 'Logging out...' : 'Log Out'}
-        </button>
-    </div>
-</header>
-
-<!-- Personalized Welcome Hero Section -->
-<section class="welcome-header">
-    <div class="welcome-container">
-        <span class="greeting-badge">👋 Welcome back</span>
-        <h1 class="welcome-title">Hey, {username}! Ready to explore Rutgers?</h1>
-        <p class="welcome-description">
-            Discover campus events tailored for you. Browse upcoming <span class="highlight">academic workshops and social gatherings</span>, instant-RSVP to secure your spot, and sync events directly to your personal calendar so you never miss out.
-        </p>
-    </div>
-</section>
-
-<!-- Events Grid Content -->
-<main class="content-wrapper">
-    <section class="events-section">
-        <h2>Discover Events</h2>
-        <p class="section-description">
-            Find something happening around campus!
-        </p>
->>>>>>> 0da2b11 (h)
 
             <a href="/discover" class="primary-button">
                 Explore Events <span aria-hidden="true">→</span>
@@ -153,7 +111,6 @@
                 {/each}
             </div>
         {:else}
-<<<<<<< HEAD
             <div class="empty-state">
                 <h3>No events available yet</h3>
                 <p>Check back soon for campus events and opportunities!</p>
@@ -161,9 +118,6 @@
                     Visit Discover →
                 </a>
             </div>
-=======
-            <p class="empty-state">No campus events available yet. Check back soon!</p>
->>>>>>> 0da2b11 (h)
         {/if}
     </section>
 
@@ -180,7 +134,6 @@
 <style>
     :global(body) {
         margin: 0;
-<<<<<<< HEAD
         background: #faf9fc;
         color: #292536;
         font-family: sans-serif;
@@ -318,166 +271,12 @@
 
     .text-link:hover {
         text-decoration: underline;
-=======
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        background-color: #F8F9FA;
-        color: #1C1C1E;
-    }
-
-    /* Top Bar Header Layout */
-    .top-bar {
-        background-color: #FFFFFF;
-        border-bottom: 1px solid #E5E7EB;
-        padding: 0 32px;
-        height: 64px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
-
-    .brand-logo {
-        display: flex;
-        align-items: center;
-        text-decoration: none;
-        font-weight: 800;
-        font-size: 1.5rem;
-        letter-spacing: -0.5px;
-        color: #1C1C1E;
-    }
-
-    .brand-logo .plus {
-        color: #CC0033; /* Rutgers Scarlet */
-    }
-
-    .brand-tag {
-        font-size: 0.65rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        background: rgba(204, 0, 51, 0.08);
-        color: #CC0033;
-        padding: 2px 6px;
-        border-radius: 4px;
-        margin-left: 8px;
-    }
-
-    /* Avatar & Logout */
-    .profile-container {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-    }
-
-    .avatar {
-        width: 38px;
-        height: 38px;
-        border-radius: 50%;
-        background-color: #CC0033;
-        color: #FFFFFF;
-        font-weight: 700;
-        font-size: 0.9rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .avatar-img {
-        width: 38px;
-        height: 38px;
-        border-radius: 50%;
-        object-fit: cover;
-    }
-
-    .logout-btn {
-        padding: 8px 16px;
-        font-size: 0.85rem;
-        font-weight: 600;
-        color: #6B7280;
-        background: transparent;
-        border: 1px solid #E5E7EB;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-
-    .logout-btn:hover {
-        color: #CC0033;
-        border-color: #CC0033;
-        background-color: rgba(204, 0, 51, 0.04);
-    }
-
-    /* Welcome Banner */
-    .welcome-header {
-        background-color: #FFFFFF;
-        border-bottom: 1px solid #E5E7EB;
-        padding: 48px 32px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    }
-
-    .welcome-container {
-        max-width: 1100px;
-        margin: 0 auto;
-    }
-
-    .greeting-badge {
-        display: inline-block;
-        font-size: 0.85rem;
-        font-weight: 600;
-        color: #CC0033;
-        background-color: rgba(204, 0, 51, 0.08);
-        padding: 4px 12px;
-        border-radius: 99px;
-        margin-bottom: 12px;
-    }
-
-    .welcome-title {
-        font-size: 2.25rem;
-        font-weight: 800;
-        letter-spacing: -0.02em;
-        color: #1C1C1E;
-        margin-bottom: 12px;
-    }
-
-    .welcome-description {
-        font-size: 1.05rem;
-        line-height: 1.6;
-        color: #6B7280;
-        max-width: 720px;
-    }
-
-    .highlight {
-        color: #1C1C1E;
-        font-weight: 600;
-    }
-
-    /* Main Page Content Wrapper */
-    .content-wrapper {
-        max-width: 1100px;
-        margin: 40px auto;
-        padding: 0 32px;
-    }
-
-    .events-section h2 {
-        font-size: 1.5rem;
-        font-weight: 700;
-        margin-bottom: 4px;
-    }
-
-    .section-description {
-        margin-top: 0;
-        margin-bottom: 24px;
-        color: #6B7280;
->>>>>>> 0da2b11 (h)
     }
 
     .events-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        gap: 24px;
-    }
-
-    .empty-state {
-        color: #6B7280;
-        font-style: italic;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 20px;
     }
 
     .empty-state {
@@ -526,7 +325,6 @@
     }
 
     @media (max-width: 600px) {
-<<<<<<< HEAD
         main {
             padding: 16px;
         }
@@ -558,21 +356,6 @@
 
         .bottom-banner {
             padding: 26px 18px;
-=======
-        .top-bar, .welcome-header, .content-wrapper {
-            padding-left: 16px;
-            padding-right: 16px;
-        }
-
-        .welcome-header {
-            padding-top: 32px;
-            padding-bottom: 32px;
-        }
-
-        .welcome-title {
-            font-size: 1.75rem;
->>>>>>> 0da2b11 (h)
         }
     }
 </style>
-
