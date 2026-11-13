@@ -4,8 +4,8 @@
 
 	let { data, children } = $props();
 
-	const profile = data.profile;
-	const initial = profile?.username ? profile.username.charAt(0).toUpperCase() : '';
+	const profile = $derived(data.profile);
+	const initial = $derived(profile?.username ? profile.username.charAt(0).toUpperCase() : '');
 </script>
 
 <div class="app-container">
