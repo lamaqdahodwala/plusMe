@@ -7,14 +7,10 @@
 
     let loggingOut = $state(false);
 
-<<<<<<< HEAD
     // Show a small preview instead of the entire event list.
     let previewEvents = $derived((data.events ?? []).slice(0, 3));
-=======
     let username = $derived(data?.profile?.username || 'Student');
     let initials = $derived(username.slice(0, 2).toUpperCase());
->>>>>>> 0da2b11 (h)
-
     async function handleLogout() {
         loggingOut = true;
 
