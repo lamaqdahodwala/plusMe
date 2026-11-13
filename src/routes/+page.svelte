@@ -22,10 +22,21 @@
 		font-family: sans-serif;
 	}
 
-	pre {
-		padding: 16px;
-		background: #f1f5f9;
-		border-radius: 8px;
-		overflow-x: auto;
-	}
+    input {
+        display: block;
+        width: 100%;
+        padding: 10px;
+        margin: 8px 0 16px;
+        box-sizing: border-box;
+    }
+
+    button {
+        width: 100%;
+        padding: 12px;
+        cursor: pointer;
+    }
+
+    .error {
+        color: red;
+    }
 </style>
