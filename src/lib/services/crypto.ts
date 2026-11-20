@@ -1,3 +1,4 @@
+import { supabase } from '#lib/supabase/client';
 const DB_NAME = 'PlusMeSecureStorage';
 const DB_VERSION = 1;
 const STORE_NAME = 'crypto_keys';
@@ -158,4 +159,31 @@ export async function decryptMessage(
     } catch {
         return '[Encrypted message - key mismatch]';
     }
+}
+
+export async function initializeEncryption(userId: string) {
+    if (!userId) {
+        throw new Error('User ID is required for encryption initialization');
+    }
+
+    const keyPair = await getOrGenerateUserKeyPair(userId);
+
+    const publicKey = await exportPublicKey(keyPair.publicKey);
+
+    const { error } = await supabase
+        .from('user_crypto_keys')
+        .upsert(
+            {
+                user_id: userId,
+                public_key: publicKey
+            },
+            { onConflict: 'user_id' }
+        );
+
+    if (error) {
+        console.error('Failed to register encryption key:', error);
+        throw error;
+    }
+
+    console.log('[Encryption] Initialized successfully for:', userId);
 }
