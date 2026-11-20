@@ -1,5 +1,10 @@
 node_modules
 
+# Schedule parser datasets
+schedule-parser/dataset/raw/
+schedule-parser/dataset/processed/
+schedule-parser/dataset/annotations/
+
 # Output
 .output
 .vercel

@@ -3,6 +3,7 @@
     import { supabase } from '#lib/supabase/client';
     import {
         getOrGenerateUserKeyPair,
+        initializeEncryption,
         exportPublicKey,
         importPublicKey,
         deriveSharedSecret,
@@ -66,29 +67,18 @@
 
             if (!user) {
                 console.error('[Messaging] No authenticated user');
-                loading = false;
                 return;
             }
 
             console.log('[Messaging] Authenticated:', user.id);
 
             keyPair = await getOrGenerateUserKeyPair(user.id);
+
             console.log('[Messaging] Key pair loaded');
 
-            const jwk = await exportPublicKey(keyPair.publicKey);
-            console.log('[Messaging] Public key exported');
+            await initializeEncryption(user.id);
 
-            const { error: keyError } = await supabase
-                .from('user_crypto_keys')
-                .upsert({
-                    user_id: user.id,
-                    public_key: jwk,
-                    updated_at: new Date().toISOString()
-                });
-
-            if (keyError) throw keyError;
-
-            console.log('[Messaging] Public key synchronized');
+            console.log('[Messaging] Encryption initialized');
 
             await loadConversations();
 
@@ -114,12 +104,19 @@
     }
 
     async function loadConversations() {
+        
         // Get conversations that belong to the current user
+        console.log('Current user:', user);
+        console.log('Current user ID:', user?.id);
+
         const { data: myParticipations, error: myError } =
-            await supabase
-                .from('conversation_participants')
-                .select('conversation_id')
-                .eq('user_id', user.id);
+                await supabase
+                    .from('conversation_participants')
+                    .select('conversation_id')
+                    .eq('user_id', user.id);
+
+            console.log('My participations:', myParticipations);
+            console.log('Participation error:', myError);
 
         if (myError) {
             console.error('Failed to load participation:', myError);
@@ -143,6 +140,10 @@
                 .in('conversation_id', conversationIds)
                 .neq('user_id', user.id);
 
+
+        console.log('Conversation IDs:', conversationIds);
+        console.log('Other participants:', otherParticipants);
+        console.log('Participant error:', participantError);
         if (participantError) {
             console.error('Failed to load other participants:', participantError);
             return;
@@ -192,67 +193,140 @@
         messages = [];
         sharedKey = null;
 
-        // 1. Fetch recipient's public key
-        const { data: keyData, error: keyError } = await supabase
-            .from('user_crypto_keys')
-            .select('public_key')
-            .eq('user_id', conv.recipient_id)
-            .maybeSingle();
+        try {
+            // 1. Make sure our own keypair is available
+            if (!keyPair) {
+                keyPair = await getOrGenerateUserKeyPair(user.id);
+            }
 
-        if (keyError) {
-            console.error('Failed to retrieve encryption key:', keyError);
-            return;
-        }
-
-        if (!keyData) {
-            console.error('Recipient has not registered an encryption key.');
-            return;
-        }
-
-        // 2. Load historical messages
-        const { data: msgData } = await supabase
-            .from('messages')
-            .select('*')
-            .eq('conversation_id', conv.id)
-            .order('created_at', { ascending: true });
-
-        if (msgData && sharedKey) {
-            messages = await Promise.all(
-                msgData.map(async (m: Message) => ({
-                    ...m,
-                    decryptedText: await decryptMessage(m.ciphertext, m.iv, sharedKey!)
-                }))
-            );
-            scrollToBottom();
-        }
-
-        // 3. Realtime updates for new incoming messages
-        if (realtimeSub) realtimeSub.unsubscribe();
-
-        realtimeSub = supabase
-            .channel(`conversation:${conv.id}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'messages',
-                    filter: `conversation_id=eq.${conv.id}`
-                },
-                async (payload) => {
-                    const newMsg = payload.new as Message;
-                    if (sharedKey) {
-                        newMsg.decryptedText = await decryptMessage(
-                            newMsg.ciphertext,
-                            newMsg.iv,
-                            sharedKey
-                        );
+            // 2. Fetch recipient's public key
+            const { data: keyData, error: keyError } = await supabase
+                .from('user_crypto_keys')
+                .select('public_key')
+                .eq('user_id', conv.recipient_id)
+                .maybeSingle();
+            
+            console.log('[Messaging] Recipient key lookup:', {
+                recipientId: conv.recipient_id,
+                keyData,
+                keyError: keyError
+                    ? {
+                        message: keyError.message,
+                        code: keyError.code,
+                        details: keyError.details,
+                        hint: keyError.hint
                     }
-                    messages = [...messages, newMsg];
-                    scrollToBottom();
-                }
-            )
-            .subscribe();
+                    : null
+            });
+
+            if (keyError) {
+                throw keyError;
+            }
+
+            if (!keyData?.public_key) {
+                console.error(
+                    '[Messaging] Recipient has not registered an encryption key.'
+                );
+                return;
+            }
+
+            console.log('[Messaging] Step 1: Keypair available');
+
+            console.log('[Messaging] Importing recipient key...');
+
+            const recipientPublicKey = await importPublicKey(
+                keyData.public_key
+            );
+
+            console.log('[Messaging] Recipient key imported!');
+            console.log('[Messaging] Step 2: Recipient key imported');
+
+            console.log('[Messaging] Deriving shared key...');
+
+            sharedKey = await deriveSharedSecret(
+                keyPair.privateKey,
+                recipientPublicKey
+            );
+
+            console.log('[Messaging] Shared key established!');
+            console.log('[Messaging] Step 3: Shared key derived');
+
+            console.log('[Messaging] Shared encryption key established');
+
+            // 5. Load historical messages
+            const { data: msgData, error: msgError } = await supabase
+                .from('messages')
+                .select('*')
+                .eq('conversation_id', conv.id)
+                .order('created_at', { ascending: true });
+            
+            console.log('[Messaging] History query:', {
+                conversationId: conv.id,
+                messageCount: msgData?.length,
+                messages: msgData,
+                error: msgError
+            });
+
+            if (msgError) throw msgError;
+
+            if (msgData) {
+                messages = await Promise.all(
+                    msgData.map(async (m: Message) => ({
+                        ...m,
+                        decryptedText: await decryptMessage(
+                            m.ciphertext,
+                            m.iv,
+                            sharedKey!
+                        )
+                    }))
+                );
+
+                scrollToBottom();
+            }
+            console.log('[Messaging] Decrypted messages:', messages);
+
+            // 6. Subscribe to incoming messages
+            if (realtimeSub) {
+                await realtimeSub.unsubscribe();
+            }
+
+            realtimeSub = supabase
+                .channel(`conversation:${conv.id}`)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'INSERT',
+                        schema: 'public',
+                        table: 'messages',
+                        filter: `conversation_id=eq.${conv.id}`
+                    },
+                    async (payload) => {
+                        const newMsg = payload.new as Message;
+
+                        if (sharedKey) {
+                            newMsg.decryptedText = await decryptMessage(
+                                newMsg.ciphertext,
+                                newMsg.iv,
+                                sharedKey
+                            );
+                        }
+
+                        messages = [...messages, newMsg];
+                        scrollToBottom();
+                    }
+                )
+                .subscribe();
+
+        } catch (error) {
+            console.error('[Messaging] Failed to select conversation:', error);
+
+            console.log(
+                '[Messaging] Full error:',
+                JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
+            );
+
+            sharedKey = null;
+        }
     }
 
     async function handleSend() {
@@ -282,7 +356,9 @@
     }
 
     async function handleSearchUsers() {
-        if (!searchQuery.trim()) {
+        const query = searchQuery.trim();
+
+        if (!query) {
             searchResults = [];
             return;
         }
@@ -293,14 +369,19 @@
             .from('User')
             .select('uid, username, profile_pic')
             .neq('uid', user.id)
-            .ilike('username', `%${searchQuery.trim()}%`)
+            .ilike('username', `%${query}%`)
             .limit(10);
+
+        console.log('Logged-in user:', user);
+        console.log('Search query:', query);
+        console.log('Search results:', data);
+        console.log('Search error:', error);
 
         if (error) {
             console.error('User search failed:', error);
             searchResults = [];
         } else {
-            searchResults = data || [];
+            searchResults = data ?? [];
         }
 
         isSearching = false;
@@ -322,11 +403,45 @@
             searchQuery = '';
             searchResults = [];
 
+            console.log('RPC conversation ID:', conversationId);
+            const { data: { user: authUser } } = await supabase.auth.getUser();
+            const newConversation: Conversation = {
+                id: conversationId,
+                recipient_id: targetUser.uid,
+                recipient_name: targetUser.username,
+                recipient_username: targetUser.username,
+                recipient_avatar: targetUser.profile_pic || undefined
+            };
+
+            conversations = [
+                newConversation,
+                ...conversations.filter(c => c.id !== conversationId)
+            ];
+
+            await selectConversation(newConversation);
+
+            console.log('App user ID:', user.id);
+            console.log('Supabase auth ID:', authUser?.id);
+            console.log('Created conversation ID:', conversationId);
+
             await loadConversations();
+
+            console.log('New conversation ID:', conversationId);
+            console.log('Sidebar conversations:', conversations);
 
             const created = conversations.find(
                 c => c.id === conversationId
             );
+
+            console.log('Conversation found:', created);
+
+            if (created) {
+                await selectConversation(created);
+            } else {
+                console.error('New conversation was not loaded into sidebar.');
+            }
+
+            console.log('Found conversation:', created);
 
             if (created) {
                 await selectConversation(created);
@@ -440,17 +555,23 @@
                 {:else if searchResults.length === 0 && searchQuery.trim()}
                     <p class="status-text">No users found.</p>
                 {:else}
-                    {#each searchResults as person}
-                        <button class="search-item" onclick={() => startNewChat(person)}>
-                            <div class="avatar small">
-                                {person.username[0]?.toUpperCase() || '?'}
+                    {#each searchResults as person (person.uid)}
+                        <button
+                            class="user-result"
+                            onclick={() => startNewChat(person)}
+                        >
+                            <div class="user-avatar">
+                                {#if person.profile_pic}
+                                    <img src={person.profile_pic} alt="" />
+                                {:else}
+                                    <span>{person.username[0]?.toUpperCase()}</span>
+                                {/if}
                             </div>
 
-                            <div class="item-info">
-                                <strong>{person.username}</strong>
-                                <span>@{person.username}</span>
+                            <div class="user-info">
+                                <span class="username">{person.username}</span>
+                                <span class="user-subtitle">Start a conversation</span>
                             </div>
-                            <span class="chat-action">Chat &rarr;</span>
                         </button>
                     {/each}
                 {/if}
@@ -768,5 +889,69 @@
         padding: 20px;
         text-align: center;
         color: #94a3b8;
+    }
+
+    .search-results {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        max-height: 300px;
+        overflow-y: auto;
+        padding: 8px;
+        box-sizing: border-box;
+    }
+
+    .user-result {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        padding: 12px;
+        border: none;
+        border-radius: 8px;
+        background: transparent;
+        color: inherit;
+        text-align: left;
+        cursor: pointer;
+        box-sizing: border-box;
+    }
+
+    .user-result:hover {
+        background: rgba(128, 128, 128, 0.15);
+    }
+
+    .user-avatar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        overflow: hidden;
+        background: #555;
+        color: white;
+    }
+
+    .user-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .user-info {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        gap: 4px;
+    }
+
+    .username {
+        font-weight: 600;
+    }
+
+    .user-subtitle {
+        font-size: 12px;
+        opacity: 0.65;
     }
 </style>
