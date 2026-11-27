@@ -1,2 +1,4 @@
 @import 'tailwindcss';
+@source '../lib/**/*.{svelte,ts}';
+@source '../stories/**/*.{svelte,ts}';
 @plugin '@tailwindcss/forms';
